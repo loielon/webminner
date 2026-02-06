@@ -1,0 +1,42 @@
+/* Main CSS */
+body, html {
+  width: 100%;
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.block {
+  margin-bottom: 30px;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.mt-5 {
+  margin-top: 2.85rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
+}
+
+.text-info {
+  color: #42b883;
+}
+
+.url {
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  color: #42b883;
+  display: inline-block;
+  padding: 1rem 0;
+}
