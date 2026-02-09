@@ -6,9 +6,6 @@
           <a-divider>Information</a-divider>
           <div style="background-color: #ececec; padding: 20px;">
             <a-card title="Configuration" :bordered="false">
-              <h3 class="text-center">
-                <a-typography-text type="success" strong>Dev Fee: 2%</a-typography-text>
-              </h3>
               <div v-if="started" class="text-center mb-3">
                  <a-tag :color="statusColor">{{ connectionStatus }}</a-tag>
               </div>
@@ -117,21 +114,7 @@
           </div>
         </div>
 
-        <div class="block">
-          <div style="background-color: #ececec; padding: 20px;">
-            <a-card :bordered="false" class="text-center">
-              <a-typography-text type="danger" strong>Support our website with a donation today to maintain this service!</a-typography-text>
-              <a-descriptions bordered size="small" class="mt-3" :column="1">
-                <a-descriptions-item label="BTC">
-                  <a-typography-paragraph copyable>3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5</a-typography-paragraph>
-                </a-descriptions-item>
-                <a-descriptions-item label="LTC">
-                  <a-typography-paragraph copyable>M8k14Q5mJ7rejsE1X9t2y2WJ7i9mXz3W</a-typography-paragraph>
-                </a-descriptions-item>
-              </a-descriptions>
-            </a-card>
-          </div>
-        </div>
+        
       </a-col>
     </a-row>
   </div>
