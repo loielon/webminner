@@ -118,10 +118,12 @@ export default class Miner extends EventEmitter {
             const params = msg.params;
             // Build job object with EXACT structure from reference site
             // The WASM worker requires specific property names in this format
+            // Job object with EXACT property names that WASM worker expects
+            // Verified from worker code: jobId, extraNonce1, extraNonce2Size, miningDiff, merkle_branch
             this.job = {
                 extraNonce1: this.extraNonce1,
                 extraNonce2Size: this.extraNonce2Size,
-                miningDiff: this.difficulty || 0.01, // CRITICAL: WASM worker needs this!
+                miningDiff: this.difficulty || 0.01,
                 jobId: params[0],
                 prevhash: params[1],
                 coinb1: params[2],
@@ -131,7 +133,8 @@ export default class Miner extends EventEmitter {
                 nbits: params[6],
                 ntime: params[7],
                 clean_jobs: params[8],
-                arg: "0607" // Power2b specific parameter
+                nonce: 0,
+                arg: "0607"
             };
             this.setStatus('Mining');
             this.emit('job', this.job);
@@ -203,18 +206,18 @@ export default class Miner extends EventEmitter {
         const data = e.data;
         if (data.type === 'hashrate') {
             // Store this worker's hashrate and emit total sum
-            // Note: Worker reports raw hashrate, no 1000x multiplier needed based on pool comparison
-            this.workerHashrates[workerIndex] = data.value || 0;
+            // Worker reports in kH/s, multiply by 1000 to convert to H/s (matching original site)
+            this.workerHashrates[workerIndex] = (data.value || 0) * 1000;
             const totalHashrate = this.workerHashrates.reduce((sum, h) => sum + h, 0);
-            console.log('[Miner] Worker', workerIndex, 'hashrate:', data.value, '| Total:', totalHashrate);
+            console.log('[Miner] Worker', workerIndex, 'hashrate:', data.value * 1000, 'H/s | Total:', totalHashrate, 'H/s');
             this.emit('hashrate', totalHashrate);
         } else if (data.type === 'share' || data.type === 'submit') {
             this.submitShare(data.share || data.data);
             if (data.hashrate) {
-                // Store this worker's hashrate on share submission
-                this.workerHashrates[workerIndex] = data.hashrate || 0;
+                // Store this worker's hashrate on share submission (also multiply by 1000)
+                this.workerHashrates[workerIndex] = (data.hashrate || 0) * 1000;
                 const totalHashrate = this.workerHashrates.reduce((sum, h) => sum + h, 0);
-                console.log('[Miner] Worker', workerIndex, 'share hashrate:', data.hashrate, '| Total:', totalHashrate);
+                console.log('[Miner] Worker', workerIndex, 'share hashrate:', data.hashrate * 1000, 'H/s | Total:', totalHashrate, 'H/s');
                 this.emit('hashrate', totalHashrate);
             }
         } else if (data.type === 'log') {
