@@ -24,6 +24,9 @@ export default class Miner extends EventEmitter {
         this.extraNonce1 = '';
         this.extraNonce2Size = 0;
         this.workerHashrates = []; // Track per-worker hashrates for accurate total
+        this.workerScriptUrl = null;
+        this.workerScriptPromise = null;
+        this.jobGeneration = 0;
     }
 
     setStatus(status) {
@@ -182,6 +185,8 @@ export default class Miner extends EventEmitter {
     }
 
     stop() {
+        // Invalidate any pending async worker creation from previous jobs.
+        this.jobGeneration++;
         if (this.socket) {
             this.socket.close();
             this.socket = null;
@@ -196,24 +201,60 @@ export default class Miner extends EventEmitter {
         this.workers = [];
     }
 
-    createWorker(index, job) {
-        const worker = new Worker('/power2b.worker.js');
-        const workerIndex = index; // Capture index for closure
-        worker.onmessage = (e) => {
-            console.log('[Miner] Worker', workerIndex, 'message received:', e.data);
-            this.handleWorkerMessage(e, workerIndex);
-        };
-        worker.onerror = (e) => {
-            console.error('[Miner] Worker error:', e.message, e);
-        };
+    async getWorkerScriptUrl() {
+        if (this.workerScriptUrl) {
+            return this.workerScriptUrl;
+        }
+        if (!this.workerScriptPromise) {
+            const workerUrl = `${window.location.origin}/power2b.worker.js`;
+            this.workerScriptPromise = fetch(workerUrl, { cache: 'force-cache' })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to load worker script: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then((source) => {
+                    // Use data URL worker content to avoid environments that wrap workers
+                    // with blob+importScripts and fail on external script loading.
+                    this.workerScriptUrl = `data:text/javascript;base64,${btoa(source)}`;
+                    return this.workerScriptUrl;
+                })
+                .catch((error) => {
+                    this.workerScriptPromise = null;
+                    throw error;
+                });
+        }
+        return this.workerScriptPromise;
+    }
 
-        this.workers.push(worker);
-        const message = {
-            algo: this.algorithm,
-            work: job
-        };
-        console.log('[Miner] Sending to worker', index, ':', message);
-        worker.postMessage(message);
+    async createWorker(index, job, generation) {
+        try {
+            const workerScriptUrl = await this.getWorkerScriptUrl();
+            if (generation !== this.jobGeneration || !this.connected) {
+                return;
+            }
+            const worker = new Worker(workerScriptUrl);
+            const workerIndex = index; // Capture index for closure
+            worker.onmessage = (e) => {
+                console.log('[Miner] Worker', workerIndex, 'message received:', e.data);
+                this.handleWorkerMessage(e, workerIndex);
+            };
+            worker.onerror = (e) => {
+                console.error('[Miner] Worker error:', e.message, e);
+            };
+
+            this.workers.push(worker);
+            const message = {
+                algo: this.algorithm,
+                work: job
+            };
+            console.log('[Miner] Sending to worker', index, ':', message);
+            worker.postMessage(message);
+        } catch (error) {
+            console.error('[Miner] Failed to create worker:', error);
+            this.emit('error', error);
+        }
     }
 
     handleWorkerMessage(e, workerIndex = 0) {
@@ -268,11 +309,12 @@ export default class Miner extends EventEmitter {
         // Extracted worker runs a tight loop and cannot consume a second job message.
         // Match original behavior by terminating/recreating workers for each new job.
         this.terminateWorkers();
+        const generation = ++this.jobGeneration;
         console.log('[Miner] Sending job to', this.threads, 'workers');
         console.log('[Miner] Job:', JSON.stringify(job, null, 2));
         console.log('[Miner] Algorithm:', this.algorithm);
         for (let idx = 0; idx < this.threads; idx++) {
-            this.createWorker(idx, job);
+            this.createWorker(idx, job, generation);
         }
     }
 }
