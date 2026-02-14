@@ -1,5 +1,37 @@
 import EventEmitter from './event-emitter';
 
+const SUPPORTED_ALGORITHMS = new Set([
+    'cwm_minotaurx',
+    'cwm_yespower',
+    'cwm_yespowerR16',
+    'cwm_yespowerSUGAR',
+    'cwm_yespowerADVC',
+    'cwm_ghostrider',
+    'cwm_power2B',
+    'cwm_yescrypt',
+    'cwm_yescryptR8',
+    'cwm_yescryptR16',
+    'cwm_yescryptR32',
+    // Present in worker build but not currently shown in UI.
+    'cwm_verushash',
+    'cwm_yespowerR32',
+    'cwm_yespowerTIDE'
+]);
+
+const LEGACY_ALGORITHM_MAP = {
+    power2b: 'cwm_power2B',
+    yespower: 'cwm_yespower',
+    cpupower: 'cwm_yespower',
+    cwm_power2b: 'cwm_power2B'
+};
+
+function normalizeAlgorithm(input) {
+    const selected = (input || '').toString().trim();
+    if (!selected) return 'cwm_minotaurx';
+    if (SUPPORTED_ALGORITHMS.has(selected)) return selected;
+    return LEGACY_ALGORITHM_MAP[selected] || 'cwm_minotaurx';
+}
+
 export default class Miner extends EventEmitter {
     constructor(options = {}) {
         super();
@@ -14,9 +46,7 @@ export default class Miner extends EventEmitter {
             : 1;
         // Use working proxy from target site
         this.proxy = cfg.proxy || 'wss://technical-dasha-devdev-ccf19728.koyeb.app';
-        // Map power2b to cwm_power2B for the WASM worker (exact string from reference site)
-        const algo = cfg.algorithm || 'power2b';
-        this.algorithm = (algo === 'power2b' || algo === 'yespower' || algo === 'cwm_power2B') ? 'cwm_power2B' : algo;
+        this.algorithm = normalizeAlgorithm(cfg.algorithm);
         console.log('[Miner] Algorithm input:', cfg.algorithm, '-> using:', this.algorithm);
         this.connected = false;
         this.job = null;

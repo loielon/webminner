@@ -24,11 +24,11 @@
                   name="algorithm"
                   :rules="[{ required: true, message: 'Please select an algorithm!' }]"
                 >
-                  <a-select v-model:value="formState.algorithm" placeholder="Algorithm">
-                    <a-select-option value="power2b">power2b</a-select-option>
-                    <a-select-option value="yespower">yespower</a-select-option>
-                    <a-select-option value="cpupower">cpupower</a-select-option>
-                  </a-select>
+                  <a-select
+                    v-model:value="formState.algorithm"
+                    placeholder="Algorithm"
+                    :options="supportAlgos"
+                  />
                 </a-form-item>
 
                 <a-form-item
@@ -132,9 +132,37 @@ const router = useRouter();
 const started = ref(false);
 const connectionStatus = ref('Idle');
 const statusColor = ref('default');
+const supportAlgos = [
+  { value: 'cwm_minotaurx', label: 'Minotaurx(KEY, PLSR, AVN, ...)' },
+  { value: 'cwm_yespower', label: 'YesPower(VISH, SMT, YTN, ...)' },
+  { value: 'cwm_yespowerR16', label: 'YesPowerR16(YTN, ...)' },
+  { value: 'cwm_yespowerSUGAR', label: 'YesPowerSUGAR(Sugar, ...)' },
+  { value: 'cwm_yespowerADVC', label: 'YesPowerADVC(ADVC, ...)' },
+  { value: 'cwm_ghostrider', label: 'Ghostrider(RTM, ...)' },
+  { value: 'cwm_power2B', label: 'power2B(MicroBitcoin, ...)' },
+  { value: 'cwm_yescrypt', label: 'Yescrypt(BSTY, XMY, UIS...)' },
+  { value: 'cwm_yescryptR8', label: 'YescryptR8(MBTC, ...)' },
+  { value: 'cwm_yescryptR16', label: 'YescryptR16(GOLD, FENEC, ...)' },
+  { value: 'cwm_yescryptR32', label: 'YescryptR32(UNFY, DMS, ...)' }
+];
+
+const algorithmAliases = {
+  power2b: 'cwm_power2B',
+  yespower: 'cwm_yespower',
+  cpupower: 'cwm_yespower'
+};
+
+const defaultAlgorithm = supportAlgos[0].value;
+const supportAlgoValues = new Set(supportAlgos.map((item) => item.value));
+
+const normalizeAlgorithm = (value) => {
+  if (!value) return defaultAlgorithm;
+  if (supportAlgoValues.has(value)) return value;
+  return algorithmAliases[value] || defaultAlgorithm;
+};
 
 const formState = reactive({
-  algorithm: 'power2b',
+  algorithm: defaultAlgorithm,
   host: '',
   port: 3333,
   worker: '',
@@ -225,7 +253,7 @@ onMounted(() => {
   let hasRequiredParams = false;
   
   if (Object.keys(query).length > 0) {
-    if (query.algorithm) formState.algorithm = query.algorithm;
+    if (query.algorithm) formState.algorithm = normalizeAlgorithm(query.algorithm);
     if (query.host) formState.host = query.host;
     if (query.port) formState.port = parseInt(query.port);
     if (query.worker) formState.worker = query.worker;
@@ -239,6 +267,7 @@ onMounted(() => {
     const saved = localStorage.getItem('minerConfig');
     if (saved) {
       Object.assign(formState, JSON.parse(saved));
+      formState.algorithm = normalizeAlgorithm(formState.algorithm);
     }
   }
 
